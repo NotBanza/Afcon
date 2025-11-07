@@ -45,7 +45,7 @@ Key modules:
 
 ## Environment Variables
 
-Create `.env` with the following entries:
+Create `.env` (or populate Render environment variables) with the following entries:
 
 ```bash
 NEXT_PUBLIC_FIREBASE_API_KEY=...
@@ -58,9 +58,14 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account", ...}
 
 OPENAI_API_KEY=sk-...
+RESEND_API_KEY=...
+RESEND_FROM_EMAIL=no-reply@anl2026.africa
+
+NEXT_PUBLIC_SITE_URL=https://placeholder.local
+PUBLIC_APP_URL=https://placeholder.local
 ```
 
-> **Tip:** Ensure the `FIREBASE_SERVICE_ACCOUNT_KEY` value is a minified JSON string (no newlines). The OpenAI key is required for AI commentary when running matches in **Play match** mode.
+> **Tip:** Ensure the `FIREBASE_SERVICE_ACCOUNT_KEY` value is a minified JSON string (no newlines) or paste it with real line breaks when using Render's secret editor. The OpenAI key is required for AI commentary when running matches in **Play match** mode. `RESEND_*` powers federation result emails, and the site URL variables are referenced in outbound links.
 
 ---
 
@@ -89,12 +94,14 @@ Visit [http://localhost:3000](http://localhost:3000). Use Firebase Authenticatio
 
 ---
 
-## Deployment on Vercel
+## Deployment on Render
 
-1. Push the repository to GitHub.
-2. Create a new Vercel project and import the repository.
-3. Add all environment variables (`NEXT_PUBLIC_*`, `FIREBASE_SERVICE_ACCOUNT_KEY`, `OPENAI_API_KEY`) in the Vercel dashboard.
-4. Deploy. After completion, run smoke tests on the live URL:
+1. Push the repository to GitHub (branch `main`).
+2. In the Render dashboard choose **New → Web Service**, connect the repo, and select branch `main`.
+3. Set **Build Command** to `npm install && npm run build` and **Start Command** to `npm start`.
+4. Add all environment variables listed above (including `RESEND_*`, `OPENAI_API_KEY`, and `NEXT_PUBLIC_SITE_URL`). Use a placeholder for the site URL on the first deploy.
+5. Deploy. After Render provisions the service, copy the live URL and update `NEXT_PUBLIC_SITE_URL` (and `PUBLIC_APP_URL` if used) to that value, then redeploy using **Deploy latest commit**.
+6. Run smoke tests on the live URL:
 	 - Representative signup + team registration
 	 - Admin seeding + simulations (both quick and AI commentary)
 	 - Bracket view and goal-scorers leaderboard
