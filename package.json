@@ -17,6 +17,7 @@
     "firebase-admin": "^13.5.0",
     "framer-motion": "^11.3.31",
     "next": "16.0.1",
+    "openai": "^6.8.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "recharts": "^2.12.7",
