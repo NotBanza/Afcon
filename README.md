@@ -1,36 +1,152 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+	<img src="public/anl-logo.png" alt="African Nations League" width="240" />
+</p>
 
-## Getting Started
+# African Nations League 2026 Platform
 
-First, run the development server:
+African Nations League (ANL) is a Next.js 16 application that lets African football federations register their national squads, while tournament administrators seed, simulate, and broadcast the Road to the Final. It pairs Firebase (Auth + Firestore + Admin SDK) with OpenAI-powered match commentary to deliver a high-fidelity tournament experience.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Features
+
+- Representative sign-up/login, password reset, and role-based dashboard (representative vs administrator)
+- Team registration with 23-player squad builder, auto-fill generator, and squad validation
+- Secured admin control panel to seed brackets, reset tournaments, and run quick or AI-powered simulations
+- Deterministic match engine with extra time, penalties, and auto-rebuild of missing squads
+- Live bracket view that reflects quarter/semi/final progress in real time
+- Goal-scorers leaderboard aggregated from match data, including player country attribution
+- Comprehensive API layering: all Firestore writes happen in `/app/api/**` via the Admin SDK
+
+---
+
+## Project Structure
+
+```
+uct-anl-2026-app/
+├── app/            # App Router routes (pages + API)
+├── components/     # Client components (forms, tables, cards)
+├── context/        # React context (Auth provider)
+├── lib/            # Shared utilities (firebase, bracket, match engine, auth helpers)
+├── public/         # Static assets
+└── README.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Key modules:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+- `lib/firebase.js` – Firebase client SDK initialisation
+- `lib/firebase-admin.js` – Admin SDK configured via service account JSON (stored in `.env`)
+- `lib/playerUtils.js` – Player generation, rating utilities, squad averaging
+- `lib/matchEngine.js` – Match simulation, extra time, penalties, commentary scaffolding
+- `lib/bracket.js` – Tournament seeding/reset/advancement helpers
+- `app/api/**` – All server-side operations (team creation, matches, admin control)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+Create `.env` with the following entries:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account", ...}
 
-## Deploy on Vercel
+OPENAI_API_KEY=sk-...
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> **Tip:** Ensure the `FIREBASE_SERVICE_ACCOUNT_KEY` value is a minified JSON string (no newlines). The OpenAI key is required for AI commentary when running matches in **Play match** mode.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Running Locally
+
+```bash
+npm install
+npm run dev
+
+# Lint & build checks
+npm run lint
+npm run build
+```
+
+Visit [http://localhost:3000](http://localhost:3000). Use Firebase Authentication emulator or production credentials as needed.
+
+---
+
+## Firebase Setup Checklist
+
+1. Create a Firebase project and enable Email/Password authentication.
+2. Add the web app configuration to `.env` (see above).
+3. Generate a service account JSON (Project Settings → Service Accounts) and copy the JSON into `FIREBASE_SERVICE_ACCOUNT_KEY`.
+4. Configure Firestore security rules to restrict team creation to authenticated representatives and admin operations to users with `role === 'administrator'`.
+5. (Optional) Enable Firebase Functions / extensions if you plan to send email notifications.
+
+---
+
+## Deployment on Vercel
+
+1. Push the repository to GitHub.
+2. Create a new Vercel project and import the repository.
+3. Add all environment variables (`NEXT_PUBLIC_*`, `FIREBASE_SERVICE_ACCOUNT_KEY`, `OPENAI_API_KEY`) in the Vercel dashboard.
+4. Deploy. After completion, run smoke tests on the live URL:
+	 - Representative signup + team registration
+	 - Admin seeding + simulations (both quick and AI commentary)
+	 - Bracket view and goal-scorers leaderboard
+	 - Auth redirects when logged out
+
+---
+
+## Test Plan (Excerpt)
+
+| Area | Scenario | Expected |
+| --- | --- | --- |
+| Auth | Login/logout/reset | Correct redirects, password reset email delivered |
+| Team Reg | Submit 23 players / 22 players | Success vs server-side validation error |
+| Admin | Start tournament with <8 teams | Error message |
+| Admin | Quick sim | Immediate result, commentary summary |
+| Admin | Play match sim | AI commentary generated, stored in match doc |
+| Bracket | After each round | Winners advance, pending fixtures update |
+| Goal Scorers | After multiple matches | Table displays cumulative goals + countries |
+
+Document failures and re-test after each fix.
+
+---
+
+## Bonus: AI Commentary Workflow
+
+The `AdminTournamentManager` offers two simulation modes:
+
+1. **Quick result** – deterministic engine calculates the score and produces a concise summary.
+2. **Play match (AI commentary)** – same engine results, followed by an OpenAI GPT request that generates 4–5 energetic sentences referencing the scoreline and scorers. Commentary is stored on the match document and surfaced in both the admin panel and bracket UI.
+
+Ensure `OPENAI_API_KEY` is set before running Play mode.
+
+---
+
+## Maintenance Scripts
+
+```bash
+# Reset matches (via API) when you need a fresh tournament
+curl -X DELETE "https://<your-host>/api/admin/tournament/matches?ids=<comma-separated-match-ids>" -H "Authorization: Bearer <admin-token>"
+
+# Seed new tournament programmatically
+curl -X POST "https://<your-host>/api/admin/tournament" -H "Authorization: Bearer <admin-token>"
+```
+
+---
+
+## Credits
+
+- Design & Engineering: ANL 2026 Dev Team
+- Commentary: Powered by OpenAI GPT
+- Frameworks: Next.js 16 App Router, Firebase, Tailwind (for utility styling)
+
+---
+
+For questions or support, reach out to the maintainers or open an issue.

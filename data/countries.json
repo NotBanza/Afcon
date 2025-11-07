@@ -1,0 +1,8 @@
+[
+  { "name": "Ghana", "code": "GHA", "flag": "/flags/ghana.svg" },
+  { "name": "Senegal", "code": "SEN", "flag": "/flags/senegal.svg" },
+  { "name": "Nigeria", "code": "NGA", "flag": "/flags/nigeria.svg" },
+  { "name": "Morocco", "code": "MAR", "flag": "/flags/morocco.svg" },
+  { "name": "Egypt", "code": "EGY", "flag": "/flags/egypt.svg" },
+  { "name": "South Africa", "code": "RSA", "flag": "/flags/south-africa.svg" }
+]
