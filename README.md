@@ -4,156 +4,112 @@
 
 # African Nations League 2026 Platform
 
-African Nations League (ANL) is a Next.js 16 application that lets African football federations register their national squads, while tournament administrators seed, simulate, and broadcast the Road to the Final. It pairs Firebase (Auth + Firestore + Admin SDK) with OpenAI-powered match commentary to deliver a high-fidelity tournament experience.
+Next.js 16 application backed by Firebase that powers the African Nations League tournament experience. The platform has two primary personas: federation representatives who manage their squads and administrators who control the knockout bracket.
 
 ---
 
-## Features
+## Quick Facts
 
-- Representative sign-up/login, password reset, and role-based dashboard (representative vs administrator)
-- Team registration with 23-player squad builder, auto-fill generator, and squad validation
-- Secured admin control panel to seed brackets, reset tournaments, and run quick or AI-powered simulations
-- Deterministic match engine with extra time, penalties, and auto-rebuild of missing squads
-- Live bracket view that reflects quarter/semi/final progress in real time
-- Goal-scorers leaderboard aggregated from match data, including player country attribution
-- Comprehensive API layering: all Firestore writes happen in `/app/api/**` via the Admin SDK
+- **Live URL:** `https://<render-app-url>`
+- **Administrator Login:** `admin@gmail.com
+- **Representative Login (optional):** `<rep-email> / <rep-password>`
+ - **Live URL:** `https://<render-app-url>`
+ - **Administrator Login (placeholder):** `admin@example.com / <admin-password>`
+ - **Representative Login (optional placeholder):** `rep@example.com / <rep-password>`
+
+(Replace the placeholders above with the credentials supplied in your submission pack.)
 
 ---
 
-## Project Structure
+## Core User Journeys
+
+### Federation Representative
+- Registers or signs in via email/password.
+- Completes a multi-step team registration form with 23-player validation, inline rating guidance, and squad auto-fill helpers.
+- Can return later to edit squad details before the tournament locks in.
+
+### Tournament Administrator
+- Accesses the admin console (guarded by role checks in Firestore).
+- Reviews registered teams and selects the eight qualifiers for the bracket using the manual seeding tool.
+- Runs match simulations:
+	- **Quick Sim** for deterministic instant results.
+	- **Play Match** to generate AI commentary (OpenAI) and richer key moments.
+- Sees the bracket update live and a champion banner appear on the public site when the final concludes.
+- Automatically emails federation contacts after each match when Resend credentials are present.
+
+### Public Fan Experience
+- Hero and live stats section shows federation counts, top goal scorers (driven by match data), and the reigning champion badge.
+- Bracket page displays quarter-final to final progression with real-time commentary snippets.
+- News and analytics pages surface simulation summaries and player insight.
+
+## User tour (what to expect on each page)
+
+- **/** (Home): Hero message, federation count, live goal-scorer feed, and champion banner once the tournament finishes.
+- **/bracket**: Public knockout tree with quarter/semi/final rounds, match scorelines, commentary snippets, and champion highlight.
+- **/goal-scorers**: Leaderboard of players ranked by goals, podium highlights, and chasing pack table refreshed in real time.
+- **/news**: Latest match stories auto-generated during simulations; links back to bracket fixtures.
+- **/dashboard** (admin only): Tournament control center featuring seeding widget, live bracket visualisation, match inspector, and simulation controls.
+- **/teams** (representative focus): Directory of registered federations showcasing ratings and contact info.
+- **/signup** and **/login**: Entry points for federation representatives and administrators.
+- **/analytics/[teamId]**: Optional deep-dive for team analysts with charts powered by match data.
+
+---
+
+## Technology Highlights
+
+- **Next.js 16 App Router** for server actions and API routes (`/app/api/**`).
+- **Firebase Auth & Firestore** for authentication, team data, matches, and real-time listeners.
+- **Firebase Admin SDK** powers secure server-side mutations (seeding, simulations, news generation).
+- **OpenAI API** generates commentary lines in play mode; offline fallback ensures resilience.
+- **Resend** delivers match result emails to federation contacts.
+
+## Rationale (design goals)
+
+- Security first: server-side API routes perform privileged Firestore writes using the Firebase Admin SDK; client code avoids privileged writes.
+- Observability: match documents include structured fields (score, goalscorers, commentary, completedAt) so public pages and analytics can render deterministic views.
+- Resilience: AI commentary is optional — the system falls back to a deterministic summary when OpenAI is unavailable.
+- Modularity: match simulation, email, and seeding logic live in `lib/` to keep API routes thin and testable.
+
+## System components
+
+- Next.js app (server + client) — pages, API routes, server helpers
+- Firebase Auth & Firestore — user accounts, teams, players, matches, news
+- Firebase Admin SDK — secure server-side operations (seeding, simulation, news write)
+- Match Engine (`lib/matchEngine.js`) — simulation algorithm, extra time, penalties
+- Email service (`lib/emailService.js`) — Resend wrapper and templates
+- AI service (OpenAI) — optional commentary generation invoked from server API
+
+
+---
+
+## Rough Architecture
 
 ```
-uct-anl-2026-app/
-├── app/            # App Router routes (pages + API)
-├── components/     # Client components (forms, tables, cards)
-├── context/        # React context (Auth provider)
-├── lib/            # Shared utilities (firebase, bracket, match engine, auth helpers)
-├── public/         # Static assets
-└── README.md
-```
+			 [Client - Browser]
+				  |
+				  |  (1) reads / listens
+				  v
+			  Next.js App (pages + API)
+			   /         |        \
+	  (2) admin calls /   (3) server   (4) server-side
+	  secure API routes      logic       side-effects
+	     |                   |              |
+	     v                   v              v
+     Firebase Admin SDK ---> Firestore   OpenAI / Resend (external)
+				  (teams, matches, news)
 
-Key modules:
-
-- `lib/firebase.js` – Firebase client SDK initialisation
-- `lib/firebase-admin.js` – Admin SDK configured via service account JSON (stored in `.env`)
-- `lib/playerUtils.js` – Player generation, rating utilities, squad averaging
-- `lib/matchEngine.js` – Match simulation, extra time, penalties, commentary scaffolding
-- `lib/bracket.js` – Tournament seeding/reset/advancement helpers
-- `app/api/**` – All server-side operations (team creation, matches, admin control)
-
----
-
-## Environment Variables
-
-Create `.env` (or populate Render environment variables) with the following entries:
-
-```bash
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-
-FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account", ...}
-
-OPENAI_API_KEY=sk-...
-RESEND_API_KEY=...
-RESEND_FROM_EMAIL=no-reply@anl2026.africa
-
-NEXT_PUBLIC_SITE_URL=https://placeholder.local
-PUBLIC_APP_URL=https://placeholder.local
-```
-
-> **Tip:** Ensure the `FIREBASE_SERVICE_ACCOUNT_KEY` value is a minified JSON string (no newlines) or paste it with real line breaks when using Render's secret editor. The OpenAI key is required for AI commentary when running matches in **Play match** mode. `RESEND_*` powers federation result emails, and the site URL variables are referenced in outbound links.
-
----
-
-## Running Locally
-
-```bash
-npm install
-npm run dev
-
-# Lint & build checks
-npm run lint
-npm run build
-```
-
-Visit [http://localhost:3000](http://localhost:3000). Use Firebase Authentication emulator or production credentials as needed.
-
----
-
-## Firebase Setup Checklist
-
-1. Create a Firebase project and enable Email/Password authentication.
-2. Add the web app configuration to `.env` (see above).
-3. Generate a service account JSON (Project Settings → Service Accounts) and copy the JSON into `FIREBASE_SERVICE_ACCOUNT_KEY`.
-4. Configure Firestore security rules to restrict team creation to authenticated representatives and admin operations to users with `role === 'administrator'`.
-5. (Optional) Enable Firebase Functions / extensions if you plan to send email notifications.
-
----
-
-## Deployment on Render
-
-1. Push the repository to GitHub (branch `main`).
-2. In the Render dashboard choose **New → Web Service**, connect the repo, and select branch `main`.
-3. Set **Build Command** to `npm install && npm run build` and **Start Command** to `npm start`.
-4. Add all environment variables listed above (including `RESEND_*`, `OPENAI_API_KEY`, and `NEXT_PUBLIC_SITE_URL`). Use a placeholder for the site URL on the first deploy.
-5. Deploy. After Render provisions the service, copy the live URL and update `NEXT_PUBLIC_SITE_URL` (and `PUBLIC_APP_URL` if used) to that value, then redeploy using **Deploy latest commit**.
-6. Run smoke tests on the live URL:
-	 - Representative signup + team registration
-	 - Admin seeding + simulations (both quick and AI commentary)
-	 - Bracket view and goal-scorers leaderboard
-	 - Auth redirects when logged out
-
----
-
-## Test Plan (Excerpt)
-
-| Area | Scenario | Expected |
-| --- | --- | --- |
-| Auth | Login/logout/reset | Correct redirects, password reset email delivered |
-| Team Reg | Submit 23 players / 22 players | Success vs server-side validation error |
-| Admin | Start tournament with <8 teams | Error message |
-| Admin | Quick sim | Immediate result, commentary summary |
-| Admin | Play match sim | AI commentary generated, stored in match doc |
-| Bracket | After each round | Winners advance, pending fixtures update |
-| Goal Scorers | After multiple matches | Table displays cumulative goals + countries |
-
-Document failures and re-test after each fix.
-
----
-
-## Bonus: AI Commentary Workflow
-
-The `AdminTournamentManager` offers two simulation modes:
-
-1. **Quick result** – deterministic engine calculates the score and produces a concise summary.
-2. **Play match (AI commentary)** – same engine results, followed by an OpenAI GPT request that generates 4–5 energetic sentences referencing the scoreline and scorers. Commentary is stored on the match document and surfaced in both the admin panel and bracket UI.
-
-Ensure `OPENAI_API_KEY` is set before running Play mode.
-
----
-
-## Maintenance Scripts
-
-```bash
-# Reset matches (via API) when you need a fresh tournament
-curl -X DELETE "https://<your-host>/api/admin/tournament/matches?ids=<comma-separated-match-ids>" -H "Authorization: Bearer <admin-token>"
-
-# Seed new tournament programmatically
-curl -X POST "https://<your-host>/api/admin/tournament" -H "Authorization: Bearer <admin-token>"
+components/  - UI (bracket, admin console, live stats)
+lib/         - matchEngine, bracket logic, email templates, helpers
+services/    - client-side wrappers calling `app/api/*`
 ```
 
 ---
 
-## Credits
+## What To Expect During Review
 
-- Design & Engineering: ANL 2026 Dev Team
-- Commentary: Powered by OpenAI GPT
-- Frameworks: Next.js 16 App Router, Firebase, Tailwind (for utility styling)
+- Sign in with the administrator account → visit `/dashboard` for the control panel.
+- Seed the tournament (if not already seeded), simulate matches, and observe bracket advancement.
+- Visit `/goal-scorers` and the home page to confirm public stats update without additional refreshes.
+- Inspect the API route code under `app/api/**` for security and validation patterns.
 
----
-
-For questions or support, reach out to the maintainers or open an issue.
+If you need assistance while marking, contact banelegumede444@gmail.com.

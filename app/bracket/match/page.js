@@ -3,6 +3,8 @@ import MatchDetails from '@/components/match/MatchDetails';
 import admin from '@/lib/firebase-admin';
 import { mapTeamSnapshot } from '@/lib/teamUtils';
 
+export const dynamic = 'force-dynamic';
+
 async function getMatchDetails(matchId) {
   if (!matchId) {
     return null;
